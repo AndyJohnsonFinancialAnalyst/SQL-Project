@@ -48,13 +48,45 @@ SELECT
 FROM second_step
 order by formatted_date DESC
 
---table needs to be set up to accept new column
+
+--Remove blank spaces
+UPDATE layoff_staging2
+SET company = RTRIM(company)
+
+--Standarize industry names
+UPDATE layoffs_staging2
+SET industry = 'Crypto'
+WHERE industry LIKE 'Crypto%';
+
+UPDATE layoffs_staging2
+SET industry = RTRIM(industry, '.')
+WHERE industry LIKE 'Crypto%'
+
+--Standardize country names
+SELECT DISTINCT country, RTRIM(country, '.') 
+FROM layoffs_staging2 
+ORDER BY 1;
+
+UPDATE layoffs_staging2
+SET country = RTRIM(country, '.')
+WHERE country LIKE 'United States%';
+
+
+
+
+	
+
+
+	
+--Table needs to be set up to accept new column
 
 ALTER TABLE layoffs_staging2 
 ADD COLUMN formatted_date TEXT;
 
 
 
+
+--Populates table to create formatted_date column
 
 UPDATE layoffs_staging2
 SET formatted_date = (
@@ -79,57 +111,11 @@ WHERE date LIKE '%/%/%';
 
 
 
-SELECT *
-from layoffs_staging2
-
-
-SELECT *
-from layoffs_staging2
-order by total_laid_off DESC
-
-UPDATE layoffs_staging2
-SET formatted_date = 'b'
-WHERE formatted_date IS " b";
-
-SELECT *
-FROM layoffs_staging2
-WHERE percentage_laid_off = 1
-order by funds_raised_millions desc
-
-SELECT company, sum(total_laid_off)
-from layoffs_staging2
-group by company
-order by 2 desc
-
-
-SELECT min(formatted_date), max(formatted_date)
-from layoffs_staging2
-
-
-
-
-
-
 SELECT country, sum(total_laid_off)
 from layoffs_staging2
 group by country
 order by 2 desc
 
-
-SELECT *
-from layoffs_staging2
-
-
-SELECT strftime('%Y', formatted_date), sum(total_laid_off)
-FROM layoffs_staging2
-group by strftime('%Y', formatted_date)
-order by 1 desc
-
-
-SELECT year(formatted_date), sum(total_laid_off)
-from layoffs_staging2
-group by year(formatted_date)
-order by 1 desc
 
 
 SELECT company, sum(total_laid_off)
@@ -143,6 +129,75 @@ WHERE substr(formatted_date,1,7) is not NULL
 group by MONTH
 order by 1 asc
 
+
+
+
+
+
+
+
+
+
+
+--Removing NULL values with Self Join
+
+SELECT *
+FROM layoffs_staging2
+WHERE total_laid_off IS NULL
+AND percentage_laid_off IS NULL
+
+
+
+SELECT DISTINCT industry
+FROM layoffs_staging2
+WHERE total_laid_off IS NULL
+OR industry  = ' ';  
+
+SELECT * 
+FROM layoffs_staging2 t1
+JOIN layoffs_staging2 t2
+	ON t1.company = t2.company
+	AND t1.location = t2.location
+WHERE t1.industry IS NULL OR t1.industry = '')
+AND t2.industry IS NOT NULL
+
+
+UPDATE layoffs_staging2 t1
+JOIN layoffs_staging t2
+	ON t1.company = t2.company
+SET t1.industry = t2.industry
+WHERE (t1.industry IS NULL OR t1.industry = '')
+AND t2.industry IS NOT NULL
+	
+--Set blanks = to NULLS
+UPDATE layoff_staging2
+SET industry = NULL
+WHERE industry = '';
+
+
+
+
+--Deleting NULLS in total_laid_off AND percentage_laid_off
+
+
+DELETE 
+FROM layoff_staging2
+WHERE total_laid_off IS NULL
+AND percentage_laid_off IS NULL
+
+
+
+
+
+
+
+
+
+
+
+
+	
+--Creates Rolling Total column
 
 with Rolling_Total AS 
 (
@@ -158,27 +213,7 @@ from Rolling_Total;
 
 
 
-
-
-SELECT 	company, sum(total_laid_off)
-from layoffs_staging2
-group by company
-order by 2 desc
-
-
-
-
-
-SELECT company, strftime('%Y', formatted_date),sum(total_laid_off)
-from layoffs_staging2
-group by company, strftime('%Y', formatted_date)
-order by 3 desc
-
-
-
-
-
-
+--Ranking the companies by layoffs per year using TWO CTEs.
 
 with Company_Year (company, years, total_laid_off) AS 
 (
